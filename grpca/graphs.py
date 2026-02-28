@@ -2,9 +2,11 @@
 
 Functions
 ---------
-spectral_normalize : Normalize a graph Laplacian by its largest eigenvalue.
-tenor_chain_graph  : Build adjacency for a sequential tenor chain.
-hierarchical_graph : Build adjacency with community reinforcement and dampened edges.
+spectral_normalize_laplacian : Normalize a graph Laplacian by largest eigenvalue.
+spectral_normalize           : Backward-compatible alias.
+day_chain_graph              : Build adjacency for sequential observations.
+tenor_chain_graph            : Build adjacency for a sequential tenor chain.
+hierarchical_graph           : Build adjacency with community reinforcement.
 """
 
 from __future__ import annotations
@@ -13,7 +15,7 @@ import numpy as np
 from scipy import linalg
 
 
-def spectral_normalize(L: np.ndarray) -> np.ndarray:
+def spectral_normalize_laplacian(L: np.ndarray) -> np.ndarray:
     """Normalize a graph Laplacian so its largest eigenvalue equals 1.
 
     Parameters
@@ -26,16 +28,58 @@ def spectral_normalize(L: np.ndarray) -> np.ndarray:
     ndarray, shape (p, p)
         Spectrally-normalized Laplacian.
     """
-    evals = linalg.eigh(L, eigvals_only=True)
+    l_arr = np.asarray(L, dtype=float)
+    if l_arr.ndim != 2 or l_arr.shape[0] != l_arr.shape[1]:
+        raise ValueError("L must be a square matrix")
+    evals = linalg.eigh(l_arr, eigvals_only=True)
     lmax = float(np.max(evals)) if len(evals) else 0.0
-    if lmax <= 0:
-        return L.copy()
-    return L / lmax
+    if lmax <= 1e-12:
+        return l_arr.copy()
+    return l_arr / lmax
+
+
+def spectral_normalize(L: np.ndarray) -> np.ndarray:
+    """Backward-compatible alias for :func:`spectral_normalize_laplacian`."""
+    return spectral_normalize_laplacian(L)
 
 
 def _laplacian(W: np.ndarray) -> np.ndarray:
     D = np.diag(W.sum(axis=1))
     return D - W
+
+
+def day_chain_graph(
+    dates: np.ndarray,
+    normalize: bool = True,
+) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
+    """Build a day-chain graph over observations in the provided order.
+
+    Connects each example ``i`` to ``i-1`` and ``i+1`` with unit weights.
+
+    Parameters
+    ----------
+    dates : array-like, shape (n,)
+        Observation index/order carrier; values are not sorted or altered.
+    normalize : bool, default True
+        If True, return spectrally-normalized Laplacian as the third output.
+
+    Returns
+    -------
+    W : ndarray, shape (n, n)
+        Adjacency matrix.
+    L : ndarray, shape (n, n)
+        Combinatorial Laplacian.
+    Ltilde : ndarray, shape (n, n)
+        Spectrally normalized Laplacian if ``normalize`` else ``L`` copy.
+    """
+    n = int(np.asarray(dates).shape[0])
+    W = np.zeros((n, n), dtype=float)
+    for i in range(max(n - 1, 0)):
+        W[i, i + 1] = 1.0
+        W[i + 1, i] = 1.0
+    L = _laplacian(W)
+    Ltilde = spectral_normalize_laplacian(L) if normalize else L.copy()
+    return W, L, Ltilde
 
 
 def tenor_chain_graph(
@@ -66,7 +110,7 @@ def tenor_chain_graph(
         W[i, i + 1] = w
         W[i + 1, i] = w
     L = _laplacian(W)
-    return W, L, spectral_normalize(L)
+    return W, L, spectral_normalize_laplacian(L)
 
 
 def hierarchical_graph(
@@ -131,4 +175,4 @@ def hierarchical_graph(
             W[i2, i1] *= factor
 
     L = _laplacian(W)
-    return W, L, spectral_normalize(L)
+    return W, L, spectral_normalize_laplacian(L)

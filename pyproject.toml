@@ -8,6 +8,19 @@ version = "0.1.0"
 description = "Graph-Regularized PCA with sklearn-compatible API"
 readme = "README.md"
 requires-python = ">=3.10"
+license = "MIT"
+authors = [{ name = "Steve Yang" }]
+classifiers = [
+  "Development Status :: 4 - Beta",
+  "Intended Audience :: Science/Research",
+  "Programming Language :: Python :: 3",
+  "Programming Language :: Python :: 3.10",
+  "Programming Language :: Python :: 3.11",
+  "Programming Language :: Python :: 3.12",
+  "Programming Language :: Python :: 3.13",
+  "Topic :: Scientific/Engineering",
+  "Typing :: Typed",
+]
 dependencies = [
   "numpy>=1.23",
   "scipy>=1.10",
@@ -15,10 +28,68 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
+pandas = ["pandas>=1.5"]
 test = [
   "pytest>=7.0",
+  "pytest-cov>=4.0",
   "pandas>=1.5",
 ]
+docs = [
+  "mkdocs-material>=9.5",
+  "mkdocstrings[python]>=0.24",
+  "mkdocs-gen-files>=0.5",
+  "mkdocs-literate-nav>=0.6",
+  "mkdocs-section-index>=0.3",
+]
+dev = [
+  "grpca[test,docs]",
+  "pre-commit>=3.0",
+  "mypy>=1.5",
+  "ruff>=0.4",
+]
+
+[project.urls]
+Homepage = "https://github.com/steveya/grpca"
+Documentation = "https://grpca.readthedocs.io"
+Repository = "https://github.com/steveya/grpca"
+Issues = "https://github.com/steveya/grpca/issues"
 
 [tool.setuptools]
 packages = ["grpca"]
+
+# ---- Ruff ----------------------------------------------------------------
+
+[tool.ruff]
+target-version = "py310"
+line-length = 99
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "UP", "B", "SIM"]
+ignore = ["E501"]
+
+[tool.ruff.lint.isort]
+known-first-party = ["grpca"]
+
+# ---- Mypy ----------------------------------------------------------------
+
+[tool.mypy]
+python_version = "3.10"
+warn_return_any = true
+warn_unused_configs = true
+ignore_missing_imports = true
+
+# ---- Pytest --------------------------------------------------------------
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-q --tb=short"
+
+# ---- Coverage ------------------------------------------------------------
+
+[tool.coverage.run]
+source = ["grpca"]
+omit = ["tests/*"]
+
+[tool.coverage.report]
+show_missing = true
+fail_under = 60

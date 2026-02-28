@@ -1,11 +1,17 @@
-"""Statistical diagnostics: HAC standard errors, DM test, loading matching."""
+"""Statistical diagnostics and GLRM diagnostic data-prep helpers."""
 
 from __future__ import annotations
 
 from itertools import permutations
 from math import erf, sqrt
+from typing import Any, Iterable
 
 import numpy as np
+
+try:
+    import pandas as pd
+except ImportError:  # pragma: no cover - optional dependency
+    pd = None  # type: ignore[assignment]
 
 try:
     from scipy.optimize import linear_sum_assignment
@@ -116,3 +122,87 @@ def best_match_scores(C: np.ndarray) -> tuple[float, float]:
             best = (score, vals)
     vals = best[1]  # type: ignore[index]
     return float(np.mean(vals)), float(np.min(vals))
+
+
+def summarize_cv_surface(cv_results: dict[str, Any]) -> Any:
+    """Summarize a CV surface into a tidy table.
+
+    Returns a pandas DataFrame when pandas is available, otherwise a list of
+    dictionaries copied from ``cv_results['results_table']``.
+    """
+    rows = cv_results.get("results_table", [])
+    if not isinstance(rows, list):
+        raise ValueError("cv_results['results_table'] must be a list")
+    if pd is not None:
+        return pd.DataFrame(rows)
+    return [dict(r) for r in rows]
+
+
+def extract_selected_tau_series(
+    cv_results_over_time: Iterable[dict[str, Any]],
+) -> list[dict[str, Any]]:
+    """Return plot-friendly selected-``tau`` values over time/windows."""
+    out: list[dict[str, Any]] = []
+    for i, res in enumerate(cv_results_over_time):
+        out.append(
+            {
+                "index": i,
+                "window": res.get("window", i),
+                "tau": res.get("selected_tau", np.nan),
+            }
+        )
+    return out
+
+
+def extract_selected_rho_series(
+    cv_results_over_time: Iterable[dict[str, Any]],
+) -> list[dict[str, Any]]:
+    """Return plot-friendly selected-``rho`` values over time/windows."""
+    out: list[dict[str, Any]] = []
+    for i, res in enumerate(cv_results_over_time):
+        out.append(
+            {
+                "index": i,
+                "window": res.get("window", i),
+                "rho": res.get("selected_rho", np.nan),
+            }
+        )
+    return out
+
+
+def extract_selected_lambda_series(
+    cv_results_over_time: Iterable[dict[str, Any]],
+) -> list[dict[str, Any]]:
+    """Return plot-friendly selected ``lambda_s`` / ``lambda_f`` over time."""
+    out: list[dict[str, Any]] = []
+    for i, res in enumerate(cv_results_over_time):
+        out.append(
+            {
+                "index": i,
+                "window": res.get("window", i),
+                "lambda_s": res.get("selected_lambda_s", np.nan),
+                "lambda_f": res.get("selected_lambda_f", np.nan),
+            }
+        )
+    return out
+
+
+def extract_validation_loss_surface(
+    cv_results: dict[str, Any],
+) -> list[dict[str, Any]]:
+    """Return plot-friendly validation-loss surface records over ``(tau, rho)``."""
+    rows = cv_results.get("results_table", [])
+    if not isinstance(rows, list):
+        raise ValueError("cv_results['results_table'] must be a list")
+    out: list[dict[str, Any]] = []
+    for row in rows:
+        out.append(
+            {
+                "tau": row.get("tau", np.nan),
+                "rho": row.get("rho", np.nan),
+                "lambda_s": row.get("lambda_s", np.nan),
+                "lambda_f": row.get("lambda_f", np.nan),
+                "val_loss": row.get("val_loss", np.nan),
+            }
+        )
+    return out
